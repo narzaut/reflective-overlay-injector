@@ -2,7 +2,36 @@
 
 Load a DLL into a process without touching `LoadLibrary`, present a window through the compositor without `WS_EX_LAYERED`, and wipe traces of both — all through direct syscalls.
 
-
+---
+```mermaid
+graph TB
+    subgraph Injector["Main Process (injector)"]
+        MAIN["injector.cpp<br/>──────────<br/>1. read DLL from disk, delete it<br/>2. open explorer via syscall<br/>3. reflective load: PE parse →<br/>   import resolve → relocation fix<br/>4. section write → protection set<br/>5. stub → DllMain → wipe traces"]
+        SHM["payload_shared.h<br/>──────────<br/>signal · generation<br/>screen_w · screen_h · ready<br/>hwnd · shared_texture_handle"]
+        RND["D3D11 device<br/>──────────<br/>shared texture<br/>keyed mutex (0=write, 1=read)"]
+        SYS["syscalls.cpp<br/>──────────<br/>NtOpenProcess<br/>NtAllocateVirtualMemory<br/>NtWriteVirtualMemory<br/>NtCreateThreadEx<br/>NtCreateSection<br/>NtMapViewOfSection"]
+    end
+    subgraph Explorer["explorer.exe (injected)"]
+        DLL["payload_dll.cpp<br/>──────────<br/>DllMain → OverlayThread<br/>OpenFileMapping → read IPC<br/>CreateWindowInBand(zbid=4)<br/>DComp visual tree<br/>OpenSharedResource<br/>CopyResource → Present"]
+        WND["Transparent Window<br/>──────────<br/>WS_EX_NOREDIRECTIONBITMAP<br/>WDA_EXCLUDEFROMCAPTURE<br/>HTCLIENT passthrough"]
+    end
+    subgraph GPU["GPU"]
+        TEX["shared D3D11 texture<br/>──────────<br/>keyed mutex sync<br/>DXGI_FORMAT_B8G8R8A8"]
+    end
+    MAIN -->|"reflective load<br/>into explorer.exe"| DLL
+    MAIN -->|"write frame data"| RND
+    RND -->|"AcquireSync(0) → write<br/>ReleaseSync(1)"| TEX
+    DLL -->|"OpenSharedResource<br/>AcquireSync(1) → copy<br/>ReleaseSync(0)"| TEX
+    DLL --> WND
+    SYS -->|"polymorphic stub page<br/>PAGE_EXECUTE_READ"| MAIN
+    style MAIN fill:#49a,stroke:#333,stroke-width:2px,color:#000
+    style SHM fill:#49a,stroke:#333,color:#000
+    style RND fill:#49a,stroke:#333,color:#000
+    style SYS fill:#49a,stroke:#333,color:#000
+    style DLL fill:#a59,stroke:#333,stroke-width:2px,color:#000
+    style WND fill:#a59,stroke:#333,color:#000
+    style TEX fill:#4a9,stroke:#333,stroke-width:2px,color:#000
+```
 
 ## The pipeline
 
