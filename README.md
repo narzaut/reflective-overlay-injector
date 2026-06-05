@@ -1,6 +1,6 @@
 # Reflective DLL Injector
 
-Load a DLL into any process without touching `LoadLibrary`, present a window through the compositor without `WS_EX_LAYERED`, and wipe every trace of both — all through direct syscalls.
+Load a DLL into a process without touching `LoadLibrary`, present a window through the compositor without `WS_EX_LAYERED`, and wipe traces of both — all through direct syscalls.
 
 ## The pipeline
 
@@ -86,7 +86,3 @@ Visual Studio 2022 + Windows SDK. The injected DLL is compiled from the same sou
 
 **Why direct syscalls?** `OpenProcess`, `WriteProcessMemory`, `VirtualAllocEx` go through ntdll, which is commonly hooked by security software for monitoring and telemetry. Direct `syscall` instructions bypass user-mode hooks entirely.
 
-## Related
-
-- [proxy-handle-hijack-PoC](https://github.com/narzaut/proxy-handle-hijack-PoC) — Read memory without opening a handle
-- [seci-callbacks](https://github.com/narzaut/seci-callbacks) — Exploit kernel drivers to bypass code signing
